@@ -4,6 +4,10 @@
 #include <map>
 #include <vector>
 
+#include "IoTItem.h"
+
+
+IoTItem* tmpItem = new IoTItem("");  //заглушка для интеграции и создания полной картины структуры
 
 //===----------------------------------------------------------------------===//
 // Lexer (Лексический анализатор)
@@ -100,11 +104,13 @@ public:
 /// VariableExprAST - Класс узла выражения для переменных (например, "a").
 class VariableExprAST : public ExprAST {
   std::string Name;
+  IoTItem* Item;  // ссылка на объект модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
 public:
-  VariableExprAST(const std::string &name) : Name(name) {}
+  VariableExprAST(const std::string &name, IoTItem* item) : Name(name), Item(item) {}
 
   float exec(){
     fprintf(stderr, "Call from  VariableExprAST: %s\n", Name.c_str());
+    return Item->getValue();
   }
 };
 
@@ -250,7 +256,7 @@ static ExprAST *ParseIdentifierExpr() {
   getNextToken();  // получаем идентификатор.
   
   if (CurTok != '(') // Обычная переменная.
-    return new VariableExprAST(IdName);
+    return new VariableExprAST(IdName, tmpItem);
   
   // Вызов функции.
   getNextToken();  // получаем (
