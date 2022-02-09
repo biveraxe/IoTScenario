@@ -3,11 +3,15 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <iostream>
+#include <fstream>
 
 #include "IoTItem.h"
 
 
 IoTItem* tmpItem = new IoTItem("");  //заглушка для интеграции и создания полной картины структуры
+
+std::ifstream myfile("d:\\IoTScenario\\scenario.txt");
 
 //===----------------------------------------------------------------------===//
 // Lexer (Лексический анализатор)
@@ -34,11 +38,11 @@ static int gettok() {
 
   // Пропускаем пробелы.
   while (isspace(LastChar))
-    LastChar = getchar();
+    LastChar = myfile.get();
 
   if (isalpha(LastChar)) { // идентификатор: [a-zA-Z][a-zA-Z0-9]*
     IdentifierStr = LastChar;
-    while (isalnum((LastChar = getchar())))
+    while (isalnum((LastChar = myfile.get())))
       IdentifierStr += LastChar;
 
     if (IdentifierStr == "if") return tok_if;
@@ -51,7 +55,7 @@ static int gettok() {
     std::string NumStr;
     do {
       NumStr += LastChar;
-      LastChar = getchar();
+      LastChar = myfile.get();
     } while (isdigit(LastChar) || LastChar == '.');
 
     NumVal = strtod(NumStr.c_str(), 0);
@@ -60,7 +64,7 @@ static int gettok() {
 
   if (LastChar == '#') {
     // Комментарий до конца строки
-    do LastChar = getchar();
+    do LastChar = myfile.get();
     while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
     
     if (LastChar != EOF)
@@ -69,12 +73,12 @@ static int gettok() {
 
   if (LastChar == '"') { // "строка"    
     IdentifierStr = "";
-    LastChar = getchar();
+    LastChar = myfile.get();
     while (LastChar != '"') {
       IdentifierStr += LastChar;
-      LastChar = getchar();
+      LastChar = myfile.get();
     }
-    LastChar = getchar();
+    LastChar = myfile.get();
       
     return tok_string;
   }
@@ -85,7 +89,7 @@ static int gettok() {
 
   // В противном случае просто возвращаем символ как значение ASCII
   int ThisChar = LastChar;
-  LastChar = getchar();
+  LastChar = myfile.get();
   return ThisChar;
 }
 
@@ -212,7 +216,18 @@ public:
   }
 };
 
+/// CmdBlockExprAST - Класс узла блока команд {..}.
+class CmdBlockExprAST : public ExprAST {
+  std::string Callee;
+  std::vector<ExprAST*> Args;
+public:
+  CmdBlockExprAST(const std::string &callee, std::vector<ExprAST*> &args)
+    : Callee(callee), Args(args) {}
 
+  IoTValue* exec() {
+    fprintf(stderr, "Call from  CallExprAST\n");
+  }
+};
 
 /// IfExprAST - Класс узла выражения для if/then/else.
 class IfExprAST : public ExprAST {
@@ -417,22 +432,8 @@ static ExprAST *ParseExpression() {
 // Top-Level parsing (Парсинг верхнего уровня)
 //===----------------------------------------------------------------------===//
 
-ExprAST *root;
-
 static void HandleIf() {
-  if (root = ParseIfExpr()) {
-    fprintf(stderr, "Parsed an IF\n");
-    root->exec();
-  } else {
-    // Пропускаем токен для восстановления после ошибки.
-    getNextToken();
-  }
-}
-
-static void HandleTopLevelExpression() {
-  // Рассчитываем верхнеуровневое выражение в анонимной функции.
-  if (ParseExpression()) {
-    fprintf(stderr, "Parsed a top-level expr\n");
+  if (ParseIfExpr()) {
     
   } else {
     // Пропускаем токен для восстановления после ошибки.
@@ -440,21 +441,29 @@ static void HandleTopLevelExpression() {
   }
 }
 
-static void MainLoop() {
-  while (1) {
-    fprintf(stderr, "ready> ");
-    switch (CurTok) {
-    case tok_eof:    return;
-    case ';':        getNextToken(); break;  // игнорируем верхнеуровневые точки с запятой.
-    case tok_if:     HandleIf(); break;
-    default:         getNextToken(); break;
-    }
-  }
-}
+
 
 //===----------------------------------------------------------------------===//
 // Main driver code (Код основной программы)
 //===----------------------------------------------------------------------===//
+
+std::vector<ExprAST*> ScenarioElements;  // корневые элементы дерава   
+
+void loadScenario() {
+  if (myfile.is_open()) {
+    getNextToken();
+    while ( myfile ) {
+      switch (CurTok) {
+        case tok_eof:    return;
+        //case ';':        getNextToken(); break;  // игнорируем верхнеуровневые точки с запятой.
+        case tok_if:     ScenarioElements.push_back(ParseExpression()); break;
+        default:         getNextToken(); break;
+      }
+    }
+    myfile.close();
+  }
+}
+
 
 int main() {
   // Задаём стандартные бинарные операторы.
@@ -465,12 +474,12 @@ int main() {
   BinopPrecedence['-'] = 20;
   BinopPrecedence['*'] = 40;  
   BinopPrecedence['='] = 60;  // highest.
+  
+  loadScenario();
 
-  fprintf(stderr, "ready> ");
-  getNextToken();
-
-  // Теперь запускаем основной "цикл интерпретатора".
-  MainLoop();
+  for (unsigned int i = 0; i < ScenarioElements.size(); i++) {
+    if (ScenarioElements[i]) ScenarioElements[i]->exec();
+  }
 
   return 0;
 }
