@@ -19,7 +19,7 @@ enum Token {
   tok_eof = -1,
 
   // операнды (первичные выражения: идентификаторы, числа)
-  tok_identifier = -4, tok_number = -5,
+  tok_identifier = -4, tok_number = -5, tok_string = -3,
 
   // управление
   tok_if = -6, tok_then = -7, tok_else = -8
@@ -66,6 +66,18 @@ static int gettok() {
     if (LastChar != EOF)
       return gettok();
   }
+
+  if (LastChar == '"') { // "строка"    
+    IdentifierStr = "";
+    LastChar = getchar();
+    while (LastChar != '"') {
+      IdentifierStr += LastChar;
+      LastChar = getchar();
+    }
+    LastChar = getchar();
+      
+    return tok_string;
+  }
   
   // Проверка конца файла.
   if (LastChar == EOF)
@@ -85,32 +97,46 @@ static int gettok() {
 class ExprAST {
 public:
   virtual ~ExprAST() {}
-  virtual float exec() {return 0;}
-  virtual std::string getValStr() {return "";}
+  virtual IoTValue* exec() {return nullptr;}
 };
 
 /// NumberExprAST - Класс узла выражения для числовых литералов (Например, "1.0").
 class NumberExprAST : public ExprAST {
-  float Val;
+  IoTValue Val;
 public:
-  NumberExprAST(float val) : Val(val) {}
+  NumberExprAST(float val) { Val.valD = val;}
 
-  float exec(){
-    fprintf(stderr, "Call from  NumberExprAST: %f\n", Val);
-    return Val;
+  IoTValue* exec(){
+    fprintf(stderr, "Call from  NumberExprAST: %f\n", Val.valD);
+    return &Val;
+  }
+};
+
+/// StringExprAST - Класс узла выражения для строковых литералов (Например, "Example with spaces and quotes").
+class StringExprAST : public ExprAST {
+  IoTValue Val;
+public:
+  StringExprAST(std::string &val) { Val.isDecimal = false; Val.valS = val;}
+
+  IoTValue* exec(){
+    fprintf(stderr, "Call from  StringExprAST: %s\n", Val.valS.c_str());
+    return &Val;
   }
 };
 
 /// VariableExprAST - Класс узла выражения для переменных (например, "a").
 class VariableExprAST : public ExprAST {
   std::string Name;
-  IoTItem* Item;  // ссылка на объект модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
-public:
-  VariableExprAST(const std::string &name, IoTItem* item) : Name(name), Item(item) {}
+  IoTValue* Value;  // ссылка на объект значения модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
 
-  float exec(){
-    fprintf(stderr, "Call from  VariableExprAST: %s\n", Name.c_str());
-    return Item->getValue();
+public:
+  VariableExprAST(const std::string &name, IoTItem* item) : Name(name), Value(item->getValue()) {}
+
+  IoTValue* exec() {
+    if (Value->isDecimal) 
+      fprintf(stderr, "Call from  VariableExprAST: %s = %d\n", Name.c_str(), Value->valD);
+    else fprintf(stderr, "Call from  VariableExprAST: %s = %s\n", Name.c_str(), Value->valS.c_str());
+    return Value;
   }
 };
 
@@ -118,35 +144,58 @@ public:
 class BinaryExprAST : public ExprAST {
   char Op;
   ExprAST *LHS, *RHS;
+  IoTValue val;
+
 public:
   BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) 
     : Op(op), LHS(lhs), RHS(rhs) {}
 
-  float exec(){
+  IoTValue* exec(){
     fprintf(stderr, "Call from  BinaryExprAST: %c\n", Op);
+    IoTValue* lhs = LHS->exec();
+    IoTValue* rhs = RHS->exec();
+    if (lhs != nullptr && rhs !=nullptr) {
+      if (lhs->isDecimal && rhs->isDecimal) {
+        switch (Op) {
+          case '>':
+            val.valD = lhs->valD > rhs->valD;
+          break;
+          case '<':
+            val.valD = lhs->valD < rhs->valD;
+          break;
 
-    switch (Op) {
-      case '>':
-        return LHS->exec() > RHS->exec();
-      break;
-      case '<':
-        return LHS->exec() < RHS->exec();
-      break;
+          case '+':
+            val.valD = lhs->valD + rhs->valD;
+          break;
+          case '-':
+            val.valD = lhs->valD - rhs->valD;
+          break;
+          case '*':
+            val.valD = lhs->valD * rhs->valD;
+          break;
+          case '=':
+            val.valD = lhs->valD == rhs->valD;
+          break;
 
-      case '+':
-        return LHS->exec() + RHS->exec();
-      break;
-      case '-':
-        return LHS->exec() - RHS->exec();
-      break;
-      case '*':
-        return LHS->exec() * RHS->exec();
-      break;
+          default:
+            break;
+        }
+        return &val;
+      }
 
-      default:
-        break;
+      if (!lhs->isDecimal && !rhs->isDecimal) {
+        switch (Op) {
+          case '=':
+            val.valD = lhs->valS == rhs->valS;
+          break;
+
+          default:
+            break;
+        }
+        return &val;
+      }
     }
-
+    return nullptr;
   }
 };
 
@@ -158,57 +207,28 @@ public:
   CallExprAST(const std::string &callee, std::vector<ExprAST*> &args)
     : Callee(callee), Args(args) {}
 
-  float exec(){
+  IoTValue* exec() {
     fprintf(stderr, "Call from  CallExprAST\n");
   }
 };
 
-/// PrototypeAST - Этот класс представляет "прототип" для функции,
-/// который хранит её имя и имена аргументов (и, таким образом, 
-/// неявно хранится число аргументов).
-class PrototypeAST {
-  std::string Name;
-  std::vector<std::string> Args;
-public:
-  PrototypeAST(const std::string &name, const std::vector<std::string> &args)
-    : Name(name), Args(args) {}
 
-  float exec(){
-    fprintf(stderr, "Call from  PrototypeAST: %s\n", Name.c_str());
-  }
-  
-};
-
-/// FunctionAST - Представляет определение самой функции
-class FunctionAST {
-  PrototypeAST *Proto;
-  ExprAST *Body;
-public:
-  FunctionAST(PrototypeAST *proto, ExprAST *body)
-    : Proto(proto), Body(body) {}
-  
-  float exec() {
-    //Body;
-    fprintf(stderr, "Call from  FunctionAST:");
-    Proto->exec();
-    Body->exec();
-  }
-};
 
 /// IfExprAST - Класс узла выражения для if/then/else.
 class IfExprAST : public ExprAST {
   ExprAST *Cond, *Then, *Else;
+  IoTValue* cond_ret;
 public:
   IfExprAST(ExprAST *cond, ExprAST *then, ExprAST *_else)
     : Cond(cond), Then(then), Else(_else) {}
 
-  float exec(){
-    int cond_ret;
-    float then_ret, else_ret;
-    if (cond_ret = Cond->exec()) then_ret = Then->exec();
+  IoTValue* exec() {
+    IoTValue *then_ret, *else_ret;
+    cond_ret = Cond->exec();
+    if (cond_ret != nullptr && cond_ret->isDecimal && cond_ret->valD) then_ret = Then->exec();
     else if (Else) else_ret = Else->exec();
 
-    fprintf(stderr, "Call from  IfExprAST: Cond result = %d, then result = %f, else result = %f\n", cond_ret, then_ret, else_ret);
+    fprintf(stderr, "Call from  IfExprAST: Cond result = %d, then result = %f, else result = %f\n", cond_ret->valD, then_ret->valD, else_ret->valD);
     return cond_ret;
   }
 };
@@ -242,8 +262,6 @@ static int GetTokPrecedence() {
 
 /// Error* - Это небольшие вспомогательные функции для обработки ошибок.
 ExprAST *Error(const char *Str) { fprintf(stderr, "Error: %s\n", Str);return 0;}
-PrototypeAST *ErrorP(const char *Str) { Error(Str); return 0; }
-FunctionAST *ErrorF(const char *Str) { Error(Str); return 0; }
 
 static ExprAST *ParseExpression();
 
@@ -300,6 +318,14 @@ static ExprAST *ParseParenExpr() {
   return V;
 }
 
+/// quotesexpr ::= '"' expression '"'
+static ExprAST *ParseQuotesExpr() {
+  std::string StringCont = IdentifierStr;
+  ExprAST *Result = new StringExprAST(StringCont);
+  getNextToken(); // получаем число
+  return Result;
+}
+
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static ExprAST *ParseIfExpr() {
   getNextToken();  // Получаем if.
@@ -336,6 +362,7 @@ static ExprAST *ParsePrimary() {
   case tok_identifier: return ParseIdentifierExpr();
   case tok_number:     return ParseNumberExpr();
   case '(':            return ParseParenExpr();
+  case tok_string:     return ParseQuotesExpr();
   case tok_if:         return ParseIfExpr();
   }
 }
@@ -373,6 +400,7 @@ static ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
   }
 }
 
+
 /// expression
 ///   ::= primary binoprhs
 ///
@@ -383,41 +411,6 @@ static ExprAST *ParseExpression() {
   return ParseBinOpRHS(0, LHS);
 }
 
-/// prototype
-///   ::= id '(' id* ')'
-static PrototypeAST *ParsePrototype() {
-  if (CurTok != tok_identifier)
-    return ErrorP("Expected function name in prototype");
-
-  std::string FnName = IdentifierStr;
-  getNextToken();
-  
-  if (CurTok != '(')
-    return ErrorP("Expected '(' in prototype");
-
-  // Считываем список наименований аргументов.
-  std::vector<std::string> ArgNames;
-  while (getNextToken() == tok_identifier)
-    ArgNames.push_back(IdentifierStr);
-  if (CurTok != ')')
-    return ErrorP("Expected ')' in prototype");
-  
-  // Все отлично.
-  getNextToken();  // получаем ')'.
-  
-  return new PrototypeAST(FnName, ArgNames);
-}
-
-
-/// toplevelexpr ::= expression
-static FunctionAST *ParseTopLevelExpr() {
-  if (ExprAST *E = ParseExpression()) {
-    // Создаём анонимный прототип.
-    PrototypeAST *Proto = new PrototypeAST("", std::vector<std::string>());
-    return new FunctionAST(Proto, E);
-  }
-  return 0;
-}
 
 
 //===----------------------------------------------------------------------===//
@@ -438,14 +431,14 @@ static void HandleIf() {
 
 static void HandleTopLevelExpression() {
   // Рассчитываем верхнеуровневое выражение в анонимной функции.
-  if (ParseTopLevelExpr()) {
+  if (ParseExpression()) {
     fprintf(stderr, "Parsed a top-level expr\n");
+    
   } else {
     // Пропускаем токен для восстановления после ошибки.
     getNextToken();
   }
 }
-
 
 static void MainLoop() {
   while (1) {
@@ -454,7 +447,7 @@ static void MainLoop() {
     case tok_eof:    return;
     case ';':        getNextToken(); break;  // игнорируем верхнеуровневые точки с запятой.
     case tok_if:     HandleIf(); break;
-    default:         HandleTopLevelExpression(); break;
+    default:         getNextToken(); break;
     }
   }
 }
@@ -470,7 +463,8 @@ int main() {
   BinopPrecedence['>'] = 10;
   BinopPrecedence['+'] = 20;
   BinopPrecedence['-'] = 20;
-  BinopPrecedence['*'] = 40;  // highest.
+  BinopPrecedence['*'] = 40;  
+  BinopPrecedence['='] = 60;  // highest.
 
   fprintf(stderr, "ready> ");
   getNextToken();
