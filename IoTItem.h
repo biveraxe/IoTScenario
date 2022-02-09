@@ -2,6 +2,14 @@
 
 #include <string>
 
+struct IoTValue
+{
+    float valD = 0;
+    std::string valS = "";
+    bool isDecimal = true;
+};
+
+
 class IoTItem {
    public:
     IoTItem(std::string parameters);
@@ -9,7 +17,7 @@ class IoTItem {
 
     void loop();
     virtual void doByInterval();
-    virtual float getValue();
+    virtual IoTValue* getValue();
     virtual void execute(std::string command, std::string param);
 
     void regEvent(std::string value, std::string consoleInfo);
@@ -34,4 +42,6 @@ class IoTItem {
     int _map3;
     int _map4;
     int _round;  // 1, 10, 100, 1000, 10000
+
+    IoTValue value;
 };
