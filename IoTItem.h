@@ -18,7 +18,7 @@ class IoTItem {
     void loop();
     virtual void doByInterval();
     virtual IoTValue* getValue();
-    virtual void execute(std::string command, std::string param);
+    virtual IoTValue execute(std::string command, std::string param);
 
     void regEvent(std::string value, std::string consoleInfo);
     void regEvent(float value, std::string consoleInfo);

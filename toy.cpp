@@ -131,13 +131,20 @@ public:
 /// CallExprAST - Класс узла выражения для вызова команды.
 class CallExprAST : public ExprAST {
   std::string Callee;
+  std::string Cmd;
   std::vector<ExprAST*> Args;
+  IoTItem *Item;  // ссылка на объект модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
+  IoTValue ret;
+
 public:
-  CallExprAST(const std::string &callee, std::vector<ExprAST*> &args)
-    : Callee(callee), Args(args) {}
+  CallExprAST(const std::string &callee, std::string &cmd, std::vector<ExprAST*> &args, IoTItem *item)
+    : Callee(callee), Cmd(cmd), Args(args), Item(item) {}
 
   IoTValue* exec() {
     fprintf(stderr, "Call from  CallExprAST\n");
+    if (Item) ret = Item->execute(Cmd, "");  // todo: сконвертировать args в масив IoTValue и передать
+      else ret = {0, "", true};
+    return &ret;
   }
 
   ~CallExprAST() {
@@ -329,7 +336,7 @@ class IoTScenario {
     // Получаем ')'.
     getNextToken();
     
-    return new CallExprAST(IdName, Args);
+    return new CallExprAST(IdName, Cmd, Args, tmpItem);
   }
 
   /// numberexpr ::= number
@@ -508,12 +515,12 @@ int main() {
   iotScen.ExecScenario();
 
 // имитируем обновление сценария после изменения
-  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
-  iotScen.ExecScenario();
+//  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
+//  iotScen.ExecScenario();
 
 // имитируем обновление сценария после изменения
-  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
-  iotScen.ExecScenario();
+//  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
+//  iotScen.ExecScenario();
 
   return 0;
 }
