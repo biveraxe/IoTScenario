@@ -73,6 +73,12 @@ public:
   BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) 
     : Op(op), LHS(lhs), RHS(rhs) {}
 
+  ~BinaryExprAST() {
+    if (LHS) delete LHS;
+    if (RHS) delete RHS;
+    fprintf(stderr, "Call from  BinaryExprAST delete\n");
+  }
+
   IoTValue* exec(){
     fprintf(stderr, "Call from  BinaryExprAST: %c\n", Op);
     IoTValue* lhs = LHS->exec();
@@ -133,6 +139,14 @@ public:
   IoTValue* exec() {
     fprintf(stderr, "Call from  CallExprAST\n");
   }
+
+  ~CallExprAST() {
+    for (unsigned int i = 0; i < Args.size(); i++) {
+      if (Args[i]) delete Args[i];
+    }
+    Args.clear();
+    fprintf(stderr, "Call from  CallExprAST delete\n");
+  }
 };
 
 /// IfExprAST - Класс узла выражения для if/then/else.
@@ -154,6 +168,18 @@ public:
       fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %f\n", cond_ret->valD, res_ret->valD);
     else fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %s\n", cond_ret->valD, res_ret->valS.c_str());
     return cond_ret;
+  }
+
+  ~IfExprAST() {
+    //for (unsigned int i = 0; i < Args.size(); i++) {
+    //  if (Args[i]) delete Args[i];
+    //}
+    //Args.clear();
+
+    if (Cond) delete Cond;
+    if (Then) delete Then;
+    if (Else) delete Else;
+    fprintf(stderr, "Call from  IfExprAST delete\n");
   }
 };
 
@@ -178,18 +204,18 @@ class IoTScenario {
 
   std::string IdentifierStr;  // Заполняется, если tok_identifier
   float NumVal;              // Заполняется, если tok_number
+  int LastChar = ' ';
 
   /// gettok - Возвращает следующий токен из стандартного потока ввода.
   int gettok() {
-    static int LastChar = ' ';
 
     // Пропускаем пробелы.
     while (isspace(LastChar))
-      LastChar = myfile.get();
+      LastChar = myfile->get();
 
     if (isalpha(LastChar)) { // идентификатор: [a-zA-Z][a-zA-Z0-9]*
       IdentifierStr = LastChar;
-      while (isalnum((LastChar = myfile.get())))
+      while (isalnum((LastChar = myfile->get())))
         IdentifierStr += LastChar;
 
       if (IdentifierStr == "if") return tok_if;
@@ -202,7 +228,7 @@ class IoTScenario {
       std::string NumStr;
       do {
         NumStr += LastChar;
-        LastChar = myfile.get();
+        LastChar = myfile->get();
       } while (isdigit(LastChar) || LastChar == '.');
 
       NumVal = strtod(NumStr.c_str(), 0);
@@ -211,7 +237,7 @@ class IoTScenario {
 
     if (LastChar == '#') {
       // Комментарий до конца строки
-      do LastChar = myfile.get();
+      do LastChar = myfile->get();
       while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
       
       if (LastChar != EOF)
@@ -220,12 +246,12 @@ class IoTScenario {
 
     if (LastChar == '"') { // "строка"    
       IdentifierStr = "";
-      LastChar = myfile.get();
+      LastChar = myfile->get();
       while (LastChar != '"') {
         IdentifierStr += LastChar;
-        LastChar = myfile.get();
+        LastChar = myfile->get();
       }
-      LastChar = myfile.get();
+      LastChar = myfile->get();
         
       return tok_string;
     }
@@ -236,7 +262,7 @@ class IoTScenario {
 
     // В противном случае просто возвращаем символ как значение ASCII
     int ThisChar = LastChar;
-    LastChar = myfile.get();
+    LastChar = myfile->get();
     return ThisChar;
   }
 
@@ -419,12 +445,22 @@ class IoTScenario {
   }
 
   std::vector<ExprAST*> ScenarioElements;  // корневые элементы дерава   
-  std::ifstream myfile;
+  std::ifstream *myfile;
+
+  void clearScenarioElements() {  // удаляем все корневые элементы дерева AST
+    for (unsigned int i = 0; i < ScenarioElements.size(); i++) {
+      if (ScenarioElements[i]) delete ScenarioElements[i];
+    }
+    ScenarioElements.clear();
+  }
 
 public:
   void loadScenario(std::string fileName) {  // посимвольно считываем и сразу интерпретируем сценарий в дерево AST
-    myfile.open(fileName);
-    if (myfile.is_open()) {
+    clearScenarioElements();  // удаляем все корневые элементы перед загрузкой новых.
+    LastChar = ' ';
+
+    myfile = new std::ifstream(fileName);
+    if (myfile->is_open()) {
       getNextToken();
       while ( myfile ) {
         switch (CurTok) {
@@ -434,7 +470,8 @@ public:
           default:         getNextToken(); break;
         }
       }
-      myfile.close();
+      myfile->close();
+      delete myfile;
     }
   }
 
@@ -468,10 +505,15 @@ IoTScenario iotScen;
 int main() {
   
   iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
-
   iotScen.ExecScenario();
 
-  
+// имитируем обновление сценария после изменения
+  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
+  iotScen.ExecScenario();
+
+// имитируем обновление сценария после изменения
+  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
+  iotScen.ExecScenario();
 
   return 0;
 }
