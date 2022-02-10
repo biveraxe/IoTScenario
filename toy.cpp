@@ -134,16 +134,23 @@ class CallExprAST : public ExprAST {
   std::string Cmd;
   std::vector<ExprAST*> Args;
   IoTItem *Item;  // ссылка на объект модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
-  IoTValue ret;
+  IoTValue ret;  // хранение возвращаемого значения, т.к. возврат по ссылке осуществляется
 
 public:
   CallExprAST(const std::string &callee, std::string &cmd, std::vector<ExprAST*> &args, IoTItem *item)
     : Callee(callee), Cmd(cmd), Args(args), Item(item) {}
 
   IoTValue* exec() {
-    fprintf(stderr, "Call from  CallExprAST\n");
-    if (Item) ret = Item->execute(Cmd, "");  // todo: сконвертировать args в масив IoTValue и передать
-      else ret = {0, "", true};
+    fprintf(stderr, "Call from  CallExprAST ID = %s, Param = %s\n", Callee.c_str(), Cmd.c_str());
+    if (Item) {
+      std::vector<IoTValue> ArgsAsIoTValue;
+      for (unsigned int i = 0; i < Args.size(); i++) {
+        IoTValue *tmp = Args[i]->exec();
+        if (tmp != nullptr) ArgsAsIoTValue.push_back(*tmp);
+          else ArgsAsIoTValue.push_back({0, "", true});
+      }
+      ret = Item->execute(Cmd, ArgsAsIoTValue);  // вызываем команду из модуля напрямую с передачей всех аргументов
+    } else ret = {0, "", true};
     return &ret;
   }
 
@@ -231,7 +238,7 @@ class IoTScenario {
       return tok_identifier;
     }
 
-    if (isdigit(LastChar) || LastChar == '.') {   // Число: [0-9.]+
+    if (isdigit(LastChar)) {   // Число: [0-9.]+
       std::string NumStr;
       do {
         NumStr += LastChar;
@@ -310,9 +317,16 @@ class IoTScenario {
   ///   ::= identifier '(' expression* ')'
   ExprAST *ParseIdentifierExpr() {
     std::string IdName = IdentifierStr;
-    
+    std::string Cmd = "";
+
     getNextToken();  // получаем идентификатор.
     
+    if (CurTok == '.') {
+      getNextToken();
+      Cmd = IdentifierStr;
+      getNextToken();
+    }
+
     if (CurTok != '(') // Обычная переменная.
       return new VariableExprAST(IdName, tmpItem);
     

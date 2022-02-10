@@ -70,6 +70,6 @@ void IoTItem::doByInterval() {}
 
 IoTValue* IoTItem::getValue() { value.valD = 10; return &value;}  // заглушка для получения значения переменных в сценарии
 
-IoTValue IoTItem::execute(std::string command, std::string param) { return IoTValue{20, "", true}} // заглушка для получения значения результата работы команды
+IoTValue IoTItem::execute(std::string command, std::vector<IoTValue> &param) { return IoTValue{20, "", true};} // заглушка для получения значения результата работы команды
 
 IoTItem* myIoTItem;

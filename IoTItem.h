@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct IoTValue
 {
@@ -18,7 +19,7 @@ class IoTItem {
     void loop();
     virtual void doByInterval();
     virtual IoTValue* getValue();
-    virtual IoTValue execute(std::string command, std::string param);
+    virtual IoTValue execute(std::string command, std::vector<IoTValue> &param);
 
     void regEvent(std::string value, std::string consoleInfo);
     void regEvent(float value, std::string consoleInfo);
