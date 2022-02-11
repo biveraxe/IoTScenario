@@ -11,6 +11,17 @@
 
 IoTItem* tmpItem = new IoTItem("");  //заглушка для интеграции и создания полной картины структуры
 
+// Лексический анализатор возвращает токены [0-255], если это неизвестны, 
+// иначе одну из известных единиц кода
+enum Token {
+  tok_eof = -1,
+
+  // операнды (первичные выражения: идентификаторы, числа)
+  tok_identifier = -4, tok_number = -5, tok_string = -3, tok_equal = -2,
+
+  // управление
+  tok_if = -6, tok_then = -7, tok_else = -8
+};
 
 //===----------------------------------------------------------------------===//
 // Abstract Syntax Tree (Абстрактное Синтаксическое Дерево или Дерево Парсинга)
@@ -57,7 +68,7 @@ public:
 
   IoTValue* exec() {
     if (Value->isDecimal) 
-      fprintf(stderr, "Call from  VariableExprAST: %s = %d\n", Name.c_str(), Value->valD);
+      fprintf(stderr, "Call from  VariableExprAST: %s = %f\n", Name.c_str(), Value->valD);
     else fprintf(stderr, "Call from  VariableExprAST: %s = %s\n", Name.c_str(), Value->valS.c_str());
     return Value;
   }
@@ -80,9 +91,18 @@ public:
   }
 
   IoTValue* exec(){
-    fprintf(stderr, "Call from  BinaryExprAST: %c\n", Op);
+    std::string printStr = "";
+    if (Op == tok_equal) printStr = printStr = "==";
+      else printStr = printStr + Op;
+    fprintf(stderr, "Call from  BinaryExprAST: %s\n", printStr.c_str());
+    
+    //if (Op == '=' && LHS) {
+
+    //}
+    
     IoTValue* lhs = LHS->exec();
     IoTValue* rhs = RHS->exec();
+    
     if (lhs != nullptr && rhs !=nullptr) {
       if (lhs->isDecimal && rhs->isDecimal) {
         switch (Op) {
@@ -102,7 +122,7 @@ public:
           case '*':
             val.valD = lhs->valD * rhs->valD;
           break;
-          case '=':
+          case tok_equal:
             val.valD = lhs->valD == rhs->valD;
           break;
 
@@ -114,7 +134,7 @@ public:
 
       if (!lhs->isDecimal && !rhs->isDecimal) {
         switch (Op) {
-          case '=':
+          case tok_equal:
             val.valD = lhs->valS == rhs->valS;
           break;
 
@@ -204,18 +224,6 @@ class IoTScenario {
   // Lexer (Лексический анализатор)
   //===----------------------------------------------------------------------===//
 
-  // Лексический анализатор возвращает токены [0-255], если это неизвестны, 
-  // иначе одну из известных единиц кода
-  enum Token {
-    tok_eof = -1,
-
-    // операнды (первичные выражения: идентификаторы, числа)
-    tok_identifier = -4, tok_number = -5, tok_string = -3,
-
-    // управление
-    tok_if = -6, tok_then = -7, tok_else = -8
-  };
-
   std::string IdentifierStr;  // Заполняется, если tok_identifier
   float NumVal;              // Заполняется, если tok_number
   int LastChar = ' ';
@@ -274,6 +282,14 @@ class IoTScenario {
     if (LastChar == EOF)
       return tok_eof;
 
+    if (LastChar == '=') {
+      LastChar = myfile->get();  
+      if (LastChar == '=') {
+        LastChar = myfile->get();
+        return tok_equal;
+      } else return '=';
+    }
+
     // В противном случае просто возвращаем символ как значение ASCII
     int ThisChar = LastChar;
     LastChar = myfile->get();
@@ -299,7 +315,7 @@ class IoTScenario {
 
   /// GetTokPrecedence - Возвращает приоритет текущего бинарного оператора.
   int GetTokPrecedence() {
-    if (!isascii(CurTok))
+    if (!(isascii(CurTok) || CurTok == tok_equal))
       return -1;
     
     // Удостоверимся, что это объявленный бинарный оператор.
@@ -510,6 +526,7 @@ public:
     BinopPrecedence['+'] = 20;
     BinopPrecedence['-'] = 20;
     BinopPrecedence['*'] = 40;  
+    BinopPrecedence[tok_equal] = 50;  // ==
     BinopPrecedence['='] = 60;  // highest.
   }
   

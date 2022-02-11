@@ -3,8 +3,7 @@
 #include <string>
 #include <vector>
 
-struct IoTValue
-{
+struct IoTValue {
     float valD = 0;
     std::string valS = "";
     bool isDecimal = true;
