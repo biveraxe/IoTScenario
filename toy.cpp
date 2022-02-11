@@ -236,6 +236,35 @@ public:
   }
 };
 
+/// BracketsExprAST - Класс узла выражения для if/then/else.
+class BracketsExprAST : public ExprAST {
+  std::vector<ExprAST*> BracketsList;
+
+public:
+  BracketsExprAST(std::vector<ExprAST*> &bracketsList)
+    : BracketsList(bracketsList) {}
+
+  IoTValue* exec() {
+    fprintf(stderr, "Call from  BracketsExprAST OperCount = %d \n", BracketsList.size());
+    
+    IoTValue* lastExecValue;
+    for (unsigned int i = 0; i < BracketsList.size(); i++) {
+      lastExecValue = BracketsList[i]->exec();
+    }
+
+    return lastExecValue;
+  }
+
+  ~BracketsExprAST() {
+    for (unsigned int i = 0; i < BracketsList.size(); i++) {
+      if (BracketsList[i]) delete BracketsList[i];
+    }
+    BracketsList.clear();
+
+    fprintf(stderr, "Call from  BracketsExprAST delete\n");
+  }
+};
+
 
 class IoTScenario {
 
@@ -431,6 +460,28 @@ class IoTScenario {
     return V;
   }
 
+  /// bracketsexpr ::= '(' expression ')'
+  ExprAST *ParseBracketsExpr() {
+    getNextToken();  // получаем {.
+    std::vector<ExprAST*> bracketsList;
+    if (CurTok != '}') {
+      while (1) {
+        ExprAST *Expr = ParseExpression();
+        if (!Expr) return 0;
+        bracketsList.push_back(Expr);
+
+        if (CurTok != ';')
+          return Error("Expected '}' or ';' in operation list");
+        getNextToken();
+
+        if (CurTok == '}') break;
+      }
+    }
+ 
+    getNextToken();  // получаем }.
+    return new BracketsExprAST(bracketsList);
+  }
+
   /// quotesexpr ::= '"' expression '"'
   ExprAST *ParseQuotesExpr() {
     std::string StringCont = IdentifierStr;
@@ -475,6 +526,7 @@ class IoTScenario {
     case tok_identifier: return ParseIdentifierExpr();
     case tok_number:     return ParseNumberExpr();
     case '(':            return ParseParenExpr();
+    case '{':            return ParseBracketsExpr();
     case tok_string:     return ParseQuotesExpr();
     case tok_if:         return ParseIfExpr();
     }
@@ -517,10 +569,10 @@ class IoTScenario {
   /// expression
   ///   ::= primary binoprhs
   ///
-  ExprAST *ParseExpression() {
+  ExprAST *ParseExpression(std::vector<ExprAST*> *bracketsList = nullptr) {
     ExprAST *LHS = ParsePrimary();
     if (!LHS) return 0;
-    
+    //if (bracketsList) bracketsList->push_back(LHS);
     return ParseBinOpRHS(0, LHS);
   }
 

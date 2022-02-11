@@ -8,5 +8,5 @@
 #if rel3.run() > 30 then rel2.run(3, 45.1, "wert") else 3*1*1+2
 #if rel2 == 24 then "true" else "false"
 
-if rel2 != 1 then rel2 = 12 + 12
+if rel2 != 1 then {rel2 = 12 + 12; rel2 = rel2 + 10;}
 if rel2 != 24 then "true" else "false"
