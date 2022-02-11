@@ -9,4 +9,4 @@
 #if rel2 == 24 then "true" else "false"
 
 if rel2 != 1 then {rel2 = 12 + 12; rel2 = rel2 + 10;}
-if rel2 != 24 then "true" else "false"
+if rel2 != 24 then tablo.run("ddd") else "2222222222222"

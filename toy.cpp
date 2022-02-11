@@ -101,8 +101,24 @@ public:
 
   IoTValue* exec(){
     std::string printStr = "";
-    if (Op == tok_equal) printStr = printStr = "==";
-      else printStr = printStr + Op;
+    switch (Op) {
+    case tok_equal:
+      printStr = "==";
+      break;
+    case tok_notequal:
+      printStr = "!=";
+      break;
+    case tok_lesseq:
+      printStr = "<=";
+      break;
+    case tok_greateq:
+      printStr = ">=";
+      break;
+
+    default:
+      printStr = printStr + Op;
+      break;
+    }     
     fprintf(stderr, "Call from  BinaryExprAST: %s\n", printStr.c_str());
     
     IoTValue* rhs = RHS->exec();  // получаем значение правого операнда для возможного использования в операции присваивания
@@ -236,7 +252,7 @@ public:
   }
 };
 
-/// BracketsExprAST - Класс узла выражения для if/then/else.
+/// BracketsExprAST - Класс узла блока кода {}.
 class BracketsExprAST : public ExprAST {
   std::vector<ExprAST*> BracketsList;
 
@@ -640,7 +656,7 @@ IoTScenario iotScen;
 
 int main() {
   
-  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
+  iotScen.loadScenario("scenario.txt");
   iotScen.ExecScenario();
 
 // имитируем обновление сценария после изменения

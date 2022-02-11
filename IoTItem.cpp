@@ -68,6 +68,9 @@ void IoTItem::regEvent(float value, std::string consoleInfo = "") {
 
 void IoTItem::doByInterval() {}
 
-IoTValue IoTItem::execute(std::string command, std::vector<IoTValue> &param) { return IoTValue{20, "", true};} // заглушка для получения значения результата работы команды
+IoTValue IoTItem::execute(std::string command, std::vector<IoTValue> &param) { 
+    if (param.size()) return param[0];
+    else return IoTValue{20, "", true};
+} // заглушка для получения значения результата работы команды
 
 IoTItem* myIoTItem;
