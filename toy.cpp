@@ -528,13 +528,13 @@ public:
   IoTScenario() {
     // Задаём стандартные бинарные операторы.
     // 1 - наименьший приоритет.
+    BinopPrecedence['='] = 1;  
+    BinopPrecedence[tok_equal] = 8;  // ==
     BinopPrecedence['<'] = 10;
     BinopPrecedence['>'] = 10;
     BinopPrecedence['+'] = 20;
     BinopPrecedence['-'] = 20;
-    BinopPrecedence['*'] = 40;  
-    BinopPrecedence[tok_equal] = 50;  // ==
-    BinopPrecedence['='] = 60;  // highest.
+    BinopPrecedence['*'] = 40;  // highest.
   }
   
   ~IoTScenario() {}
