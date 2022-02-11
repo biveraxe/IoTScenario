@@ -211,14 +211,14 @@ public:
     : Cond(cond), Then(then), Else(_else) {}
 
   IoTValue* exec() {
-    IoTValue *res_ret;
-    IoTValue *cond_ret;
+    IoTValue *res_ret = nullptr;
+    IoTValue *cond_ret = nullptr;
     cond_ret = Cond->exec();
     if (cond_ret != nullptr && cond_ret->isDecimal && cond_ret->valD) res_ret = Then->exec();
     else if (Else) res_ret = Else->exec();
 
-    if (res_ret->isDecimal)
-      fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %f\n", cond_ret->valD, res_ret->valD);
+    if (!res_ret) fprintf(stderr, "Call from  IfExprAST: Cond result = %f, no body result\n", cond_ret->valD);
+    else if (res_ret->isDecimal) fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %f\n", cond_ret->valD, res_ret->valD);
     else fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %s\n", cond_ret->valD, res_ret->valS.c_str());
     return cond_ret;
   }
@@ -454,14 +454,14 @@ class IoTScenario {
     ExprAST *Then = ParseExpression();
     if (Then == 0) return 0;
     
-    if (CurTok != tok_else)
-      return Error("expected else");
-    
-    getNextToken();
-    
-    ExprAST *Else = ParseExpression();
-    if (!Else) return 0;
-    
+    //if (CurTok != tok_else)
+    //  return Error("expected else");
+    ExprAST *Else = nullptr;
+    if (CurTok == tok_else) {
+      getNextToken();
+      Else = ParseExpression();
+    }
+
     return new IfExprAST(Cond, Then, Else);
   }
 
