@@ -17,7 +17,10 @@ enum Token {
   tok_eof = -1,
 
   // операнды (первичные выражения: идентификаторы, числа)
-  tok_identifier = -4, tok_number = -5, tok_string = -3, tok_equal = -2,
+  tok_identifier = -4, tok_number = -5, tok_string = -3,
+
+  // двухсимвольные операторы бинарных операций
+  tok_equal = -2, tok_notequal = -9, tok_lesseq = -10, tok_greateq = -11,  
 
   // управление
   tok_if = -6, tok_then = -7, tok_else = -8
@@ -119,6 +122,18 @@ public:
           case '<':
             val.valD = lhs->valD < rhs->valD;
           break;
+          case tok_lesseq:
+            val.valD = lhs->valD <= rhs->valD;
+          break;
+          case tok_greateq:
+            val.valD = lhs->valD >= rhs->valD;
+          break;
+          case tok_equal:
+            val.valD = lhs->valD == rhs->valD;
+          break;
+          case tok_notequal:
+            val.valD = lhs->valD != rhs->valD;
+          break;
 
           case '+':
             val.valD = lhs->valD + rhs->valD;
@@ -128,9 +143,6 @@ public:
           break;
           case '*':
             val.valD = lhs->valD * rhs->valD;
-          break;
-          case tok_equal:
-            val.valD = lhs->valD == rhs->valD;
           break;
 
           default:
@@ -297,6 +309,30 @@ class IoTScenario {
       } else return '=';
     }
 
+    if (LastChar == '!') {
+      LastChar = myfile->get();  
+      if (LastChar == '=') {
+        LastChar = myfile->get();
+        return tok_notequal;
+      } else return '!';
+    }
+
+    if (LastChar == '<') {
+      LastChar = myfile->get();  
+      if (LastChar == '=') {
+        LastChar = myfile->get();
+        return tok_lesseq;
+      } else return '<';
+    }
+
+    if (LastChar == '>') {
+      LastChar = myfile->get();  
+      if (LastChar == '=') {
+        LastChar = myfile->get();
+        return tok_greateq;
+      } else return '>';
+    }
+
     // В противном случае просто возвращаем символ как значение ASCII
     int ThisChar = LastChar;
     LastChar = myfile->get();
@@ -322,7 +358,7 @@ class IoTScenario {
 
   /// GetTokPrecedence - Возвращает приоритет текущего бинарного оператора.
   int GetTokPrecedence() {
-    if (!(isascii(CurTok) || CurTok == tok_equal))
+    if (!(isascii(CurTok) || BinopPrecedence.count(CurTok)))
       return -1;
     
     // Удостоверимся, что это объявленный бинарный оператор.
@@ -529,7 +565,10 @@ public:
     // Задаём стандартные бинарные операторы.
     // 1 - наименьший приоритет.
     BinopPrecedence['='] = 1;  
-    BinopPrecedence[tok_equal] = 8;  // ==
+    BinopPrecedence[tok_equal] = 3;  // ==
+    BinopPrecedence[tok_notequal] = 4;  // !=
+    BinopPrecedence[tok_lesseq] = 5;  // <=
+    BinopPrecedence[tok_greateq] = 6;  // >=
     BinopPrecedence['<'] = 10;
     BinopPrecedence['>'] = 10;
     BinopPrecedence['+'] = 20;
