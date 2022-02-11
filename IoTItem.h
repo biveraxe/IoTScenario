@@ -17,7 +17,6 @@ class IoTItem {
 
     void loop();
     virtual void doByInterval();
-    virtual IoTValue* getValue();
     virtual IoTValue execute(std::string command, std::vector<IoTValue> &param);
 
     void regEvent(std::string value, std::string consoleInfo);
@@ -29,6 +28,8 @@ class IoTItem {
     unsigned long currentMillis;
     unsigned long prevMillis;
     unsigned long difference;
+
+    IoTValue value;  // хранение основного значения, котрое обновляется из сценария, execute(), loop() или doByInterval()
 
    protected:
     std::string _subtype;
@@ -42,6 +43,4 @@ class IoTItem {
     int _map3;
     int _map4;
     int _round;  // 1, 10, 100, 1000, 10000
-
-    IoTValue value;
 };

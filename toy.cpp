@@ -62,21 +62,21 @@ public:
 /// VariableExprAST - Класс узла выражения для переменных (например, "a").
 class VariableExprAST : public ExprAST {
   std::string Name;
-  IoTValue* Value;  // ссылка на объект значения модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
+  IoTItem* Item;  // ссылка на объект модуля (прямой доступ к идентификатору указанному в сценарии), если получилось найти модуль по ID
 
 public:
-  VariableExprAST(const std::string &name, IoTItem* item) : Name(name), Value(item->getValue()) {}
+  VariableExprAST(const std::string &name, IoTItem* item) : Name(name), Item(item) {}
 
   int setValue(IoTValue *val) {
-    *Value = *val;  // устанавливаем значение в связанном Item модуля напрямую
+    Item->value = *val;  // устанавливаем значение в связанном Item модуля напрямую
     return 1;
   }
 
   IoTValue* exec() {
-    if (Value->isDecimal) 
-      fprintf(stderr, "Call from  VariableExprAST: %s = %f\n", Name.c_str(), Value->valD);
-    else fprintf(stderr, "Call from  VariableExprAST: %s = %s\n", Name.c_str(), Value->valS.c_str());
-    return Value;
+    if (Item->value.isDecimal) 
+      fprintf(stderr, "Call from  VariableExprAST: %s = %f\n", Name.c_str(), Item->value.valD);
+    else fprintf(stderr, "Call from  VariableExprAST: %s = %s\n", Name.c_str(), Item->value.valS.c_str());
+    return &(Item->value);
   }
 };
 
