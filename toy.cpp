@@ -32,6 +32,7 @@ class ExprAST {
 public:
   virtual ~ExprAST() {}
   virtual IoTValue* exec() {return nullptr;}
+  virtual int setValue(IoTValue *val) {return 0;}  // 0 - установка значения не поддерживается наследником
 };
 
 /// NumberExprAST - Класс узла выражения для числовых литералов (Например, "1.0").
@@ -66,6 +67,11 @@ class VariableExprAST : public ExprAST {
 public:
   VariableExprAST(const std::string &name, IoTItem* item) : Name(name), Value(item->getValue()) {}
 
+  int setValue(IoTValue *val) {
+    *Value = *val;  // устанавливаем значение в связанном Item модуля напрямую
+    return 1;
+  }
+
   IoTValue* exec() {
     if (Value->isDecimal) 
       fprintf(stderr, "Call from  VariableExprAST: %s = %f\n", Name.c_str(), Value->valD);
@@ -96,12 +102,13 @@ public:
       else printStr = printStr + Op;
     fprintf(stderr, "Call from  BinaryExprAST: %s\n", printStr.c_str());
     
-    //if (Op == '=' && LHS) {
+    IoTValue* rhs = RHS->exec();  // получаем значение правого операнда для возможного использования в операции присваивания
 
-    //}
-    
-    IoTValue* lhs = LHS->exec();
-    IoTValue* rhs = RHS->exec();
+    if (Op == '=' && LHS->setValue(rhs)) {  // если установка значения не поддерживается, т.е. слева не переменная, то работаем по другим комбинациям далее
+      return rhs;                           // иначе возвращаем присвоенное значение справа
+    }
+
+    IoTValue* lhs = LHS->exec();  // если присваивания не произошло, значит операция иная и необходимо значение левого операнда
     
     if (lhs != nullptr && rhs !=nullptr) {
       if (lhs->isDecimal && rhs->isDecimal) {

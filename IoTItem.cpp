@@ -68,7 +68,7 @@ void IoTItem::regEvent(float value, std::string consoleInfo = "") {
 
 void IoTItem::doByInterval() {}
 
-IoTValue* IoTItem::getValue() { value.valD = 10; return &value;}  // заглушка для получения значения переменных в сценарии
+IoTValue* IoTItem::getValue() { return &value;}  // заглушка для получения значения переменных в сценарии
 
 IoTValue IoTItem::execute(std::string command, std::vector<IoTValue> &param) { return IoTValue{20, "", true};} // заглушка для получения значения результата работы команды
 
