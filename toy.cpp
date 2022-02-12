@@ -238,6 +238,7 @@ public:
     if (!res_ret) fprintf(stderr, "Call from  IfExprAST: Cond result = %f, no body result\n", cond_ret->valD);
     else if (res_ret->isDecimal) fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %f\n", cond_ret->valD, res_ret->valD);
     else fprintf(stderr, "Call from  IfExprAST: Cond result = %f, result = %s\n", cond_ret->valD, res_ret->valS.c_str());
+    fprintf(stderr, "\n");
     return cond_ret;
   }
 
