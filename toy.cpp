@@ -196,7 +196,6 @@ public:
     : Callee(callee), Cmd(cmd), Args(args), Item(item) {}
 
   IoTValue* exec() {
-    fprintf(stderr, "Call from  CallExprAST ID = %s, Param = %s\n", Callee.c_str(), Cmd.c_str());
     if (Item) {
       std::vector<IoTValue> ArgsAsIoTValue;
       for (unsigned int i = 0; i < Args.size(); i++) {
@@ -206,6 +205,9 @@ public:
       }
       ret = Item->execute(Cmd, ArgsAsIoTValue);  // вызываем команду из модуля напрямую с передачей всех аргументов
     } else ret = {0, "", true};
+
+    if (ret.isDecimal) fprintf(stderr, "Call from  CallExprAST ID = %s, Param = %s, exec result = %f\n", Callee.c_str(), Cmd.c_str(), ret.valD);
+    else fprintf(stderr, "Call from  CallExprAST ID = %s, Param = %s, exec result = %s\n", Callee.c_str(), Cmd.c_str(), ret.valS.c_str());
     return &ret;
   }
 
