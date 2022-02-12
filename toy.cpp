@@ -160,6 +160,10 @@ public:
           case '*':
             val.valD = lhs->valD * rhs->valD;
           break;
+          case '/':
+            if (rhs->valD != 0) val.valD = lhs->valD / rhs->valD;
+            else val.valD = 3.4E+38;
+          break;
 
           default:
             break;
@@ -206,8 +210,8 @@ public:
       ret = Item->execute(Cmd, ArgsAsIoTValue);  // вызываем команду из модуля напрямую с передачей всех аргументов
     } else ret = {0, "", true};
 
-    if (ret.isDecimal) fprintf(stderr, "Call from  CallExprAST ID = %s, Param = %s, exec result = %f\n", Callee.c_str(), Cmd.c_str(), ret.valD);
-    else fprintf(stderr, "Call from  CallExprAST ID = %s, Param = %s, exec result = %s\n", Callee.c_str(), Cmd.c_str(), ret.valS.c_str());
+    if (ret.isDecimal) fprintf(stderr, "Call from  CallExprAST ID = %s, Command = %s, exec result = %f\n", Callee.c_str(), Cmd.c_str(), ret.valD);
+    else fprintf(stderr, "Call from  CallExprAST ID = %s, Command = %s, exec result = %s\n", Callee.c_str(), Cmd.c_str(), ret.valS.c_str());
     return &ret;
   }
 
@@ -243,11 +247,6 @@ public:
   }
 
   ~IfExprAST() {
-    //for (unsigned int i = 0; i < Args.size(); i++) {
-    //  if (Args[i]) delete Args[i];
-    //}
-    //Args.clear();
-
     if (Cond) delete Cond;
     if (Then) delete Then;
     if (Else) delete Else;
@@ -644,6 +643,7 @@ public:
     BinopPrecedence['>'] = 10;
     BinopPrecedence['+'] = 20;
     BinopPrecedence['-'] = 20;
+    BinopPrecedence['/'] = 35;  
     BinopPrecedence['*'] = 40;  // highest.
   }
   
