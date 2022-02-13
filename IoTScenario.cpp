@@ -1,12 +1,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
-#include <map>
-#include <vector>
 #include <iostream>
 #include <fstream>
 
+#include <map>
+#include <vector>
 #include "IoTItem.h"
+#include "IoTScenario.h"
 
 
 IoTItem* tmpItem = new IoTItem("");  //заглушка для интеграции и создания полной картины структуры
@@ -31,12 +32,9 @@ enum Token {
 //===----------------------------------------------------------------------===//
 
 /// ExprAST - Базовый класс для всех узлов выражений.
-class ExprAST {
-public:
-  virtual ~ExprAST() {}
-  virtual IoTValue* exec() {return nullptr;}
-  virtual int setValue(IoTValue *val) {return 0;}  // 0 - установка значения не поддерживается наследником
-};
+ExprAST::~ExprAST() {}
+IoTValue* ExprAST::exec() {return nullptr;}
+int ExprAST::setValue(IoTValue *val) {return 0;}  // 0 - установка значения не поддерживается наследником
 
 /// NumberExprAST - Класс узла выражения для числовых литералов (Например, "1.0").
 class NumberExprAST : public ExprAST {
@@ -284,18 +282,12 @@ public:
 };
 
 
-class IoTScenario {
-
   //===----------------------------------------------------------------------===//
   // Lexer (Лексический анализатор)
   //===----------------------------------------------------------------------===//
 
-  std::string IdentifierStr;  // Заполняется, если tok_identifier
-  float NumVal;              // Заполняется, если tok_number
-  int LastChar = ' ';
-
   /// gettok - Возвращает следующий токен из стандартного потока ввода.
-  int gettok() {
+  int IoTScenario::gettok() {
 
     // Пропускаем пробелы.
     while (isspace(LastChar))
@@ -395,16 +387,12 @@ class IoTScenario {
   /// CurTok/getNextToken - Предоставляет простой буфер токенов. CurTok - это текущий
   /// токен, просматриваемый парсером. getNextToken получает следующий токен от
   /// лексического анализатора и обновляет CurTok.
-  int CurTok;
-  int getNextToken() {
+  int IoTScenario::getNextToken() {
     return CurTok = gettok();
   }
 
-  /// BinopPrecedence - Содержит приоритеты для бинарных операторов
-  std::map<char, int> BinopPrecedence;
-
   /// GetTokPrecedence - Возвращает приоритет текущего бинарного оператора.
-  int GetTokPrecedence() {
+  int IoTScenario::GetTokPrecedence() {
     if (!(isascii(CurTok) || BinopPrecedence.count(CurTok)))
       return -1;
     
@@ -415,13 +403,13 @@ class IoTScenario {
   }
 
   /// Error* - Это небольшие вспомогательные функции для обработки ошибок.
-  ExprAST *Error(const char *Str) { fprintf(stderr, "Error: %s\n", Str);return 0;}
+  ExprAST* IoTScenario::Error(const char *Str) { fprintf(stderr, "Error: %s\n", Str);return 0;}
 
 
   /// identifierexpr
   ///   ::= identifier
   ///   ::= identifier '(' expression* ')'
-  ExprAST *ParseIdentifierExpr() {
+  ExprAST* IoTScenario::ParseIdentifierExpr() {
     std::string IdName = IdentifierStr;
     std::string Cmd = "";
 
@@ -460,14 +448,14 @@ class IoTScenario {
   }
 
   /// numberexpr ::= number
-  ExprAST *ParseNumberExpr() {
+  ExprAST* IoTScenario::ParseNumberExpr() {
     ExprAST *Result = new NumberExprAST(NumVal);
     getNextToken(); // получаем число
     return Result;
   }
 
   /// parenexpr ::= '(' expression ')'
-  ExprAST *ParseParenExpr() {
+  ExprAST* IoTScenario::ParseParenExpr() {
     getNextToken();  // получаем (.
     ExprAST *V = ParseExpression();
     if (!V) return 0;
@@ -478,8 +466,8 @@ class IoTScenario {
     return V;
   }
 
-  /// bracketsexpr ::= '(' expression ')'
-  ExprAST *ParseBracketsExpr() {
+  /// bracketsexpr ::= '{' expression '}'
+  ExprAST* IoTScenario::ParseBracketsExpr() {
     getNextToken();  // получаем {.
     std::vector<ExprAST*> bracketsList;
     if (CurTok != '}') {
@@ -501,7 +489,7 @@ class IoTScenario {
   }
 
   /// quotesexpr ::= '"' expression '"'
-  ExprAST *ParseQuotesExpr() {
+  ExprAST* IoTScenario::ParseQuotesExpr() {
     std::string StringCont = IdentifierStr;
     ExprAST *Result = new StringExprAST(StringCont);
     getNextToken(); // получаем число
@@ -509,7 +497,7 @@ class IoTScenario {
   }
 
   /// ifexpr ::= 'if' expression 'then' expression 'else' expression
-  ExprAST *ParseIfExpr() {
+  ExprAST* IoTScenario::ParseIfExpr() {
     getNextToken();  // Получаем if.
     
     // условие.
@@ -538,7 +526,7 @@ class IoTScenario {
   ///   ::= identifierexpr
   ///   ::= numberexpr
   ///   ::= parenexpr
-  ExprAST *ParsePrimary() {
+  ExprAST* IoTScenario::ParsePrimary() {
     switch (CurTok) {
     default: return Error("unknown token when expecting an expression");
     case tok_identifier: return ParseIdentifierExpr();
@@ -552,7 +540,7 @@ class IoTScenario {
 
   /// binoprhs
   ///   ::= ('+' primary)*
-  ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
+  ExprAST* IoTScenario::ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
     // Если это бинарный оператор, получаем его приоритет
     while (1) {
       int TokPrec = GetTokPrecedence();
@@ -587,25 +575,20 @@ class IoTScenario {
   /// expression
   ///   ::= primary binoprhs
   ///
-  ExprAST *ParseExpression(std::vector<ExprAST*> *bracketsList = nullptr) {
+  ExprAST* IoTScenario::ParseExpression() {
     ExprAST *LHS = ParsePrimary();
     if (!LHS) return 0;
-    //if (bracketsList) bracketsList->push_back(LHS);
     return ParseBinOpRHS(0, LHS);
   }
 
-  std::vector<ExprAST*> ScenarioElements;  // корневые элементы дерава   
-  std::ifstream *myfile;
-
-  void clearScenarioElements() {  // удаляем все корневые элементы дерева AST
+  void IoTScenario::clearScenarioElements() {  // удаляем все корневые элементы дерева AST
     for (unsigned int i = 0; i < ScenarioElements.size(); i++) {
       if (ScenarioElements[i]) delete ScenarioElements[i];
     }
     ScenarioElements.clear();
   }
 
-public:
-  void loadScenario(std::string fileName) {  // посимвольно считываем и сразу интерпретируем сценарий в дерево AST
+  void IoTScenario::loadScenario(std::string fileName) {  // посимвольно считываем и сразу интерпретируем сценарий в дерево AST
     clearScenarioElements();  // удаляем все корневые элементы перед загрузкой новых.
     LastChar = ' ';
 
@@ -625,13 +608,13 @@ public:
     }
   }
 
-  void ExecScenario() {  // запускаем поочереди все корневые элементы выражений в сценарии, ожидаемо - это IFы
+  void IoTScenario::ExecScenario() {  // запускаем поочереди все корневые элементы выражений в сценарии, ожидаемо - это IFы
     for (unsigned int i = 0; i < ScenarioElements.size(); i++) {
       if (ScenarioElements[i]) ScenarioElements[i]->exec();
     }
   }
 
-  IoTScenario() {
+  IoTScenario::IoTScenario() {
     // Задаём стандартные бинарные операторы.
     // 1 - наименьший приоритет.
     BinopPrecedence['='] = 1;  
@@ -647,28 +630,4 @@ public:
     BinopPrecedence['*'] = 40;  // highest.
   }
   
-  ~IoTScenario() {}
-};
-
-
-//===----------------------------------------------------------------------===//
-// Main driver code (Код основной программы)
-//===----------------------------------------------------------------------===//
-
-IoTScenario iotScen;
-
-int main() {
-  
-  iotScen.loadScenario("scenario.txt");
-  iotScen.ExecScenario();
-
-// имитируем обновление сценария после изменения
-//  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
-//  iotScen.ExecScenario();
-
-// имитируем обновление сценария после изменения
-//  iotScen.loadScenario("d:\\IoTScenario\\scenario.txt");
-//  iotScen.ExecScenario();
-
-  return 0;
-}
+  IoTScenario::~IoTScenario() {}
